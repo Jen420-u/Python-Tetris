@@ -2,11 +2,16 @@ import tkinter as tk
 import random
 from tkinter import messagebox
 
+# ================== CONSTANTS ==================
 GAME_WIDTH = 400
 GAME_HEIGHT = 600
 GRID_SIZE = 30
+
 BOARD_WIDTH = GAME_WIDTH // GRID_SIZE
 BOARD_HEIGHT = GAME_HEIGHT // GRID_SIZE
+
+BOARD_PIXEL_WIDTH = BOARD_WIDTH * GRID_SIZE
+BOARD_PIXEL_HEIGHT = BOARD_HEIGHT * GRID_SIZE
 
 BASE_SPEED = 500
 MIN_SPEED = 100
@@ -21,6 +26,7 @@ SHAPES = [
     ([[1, 1, 1], [0, 0, 1]], "blue"),
 ]
 
+# ================== GAME CLASS ==================
 class Tetris(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -28,10 +34,15 @@ class Tetris(tk.Tk):
         self.title("Tetris")
         self.resizable(False, False)
 
-        self.canvas = tk.Canvas(self, width=GAME_WIDTH + 120, height=GAME_HEIGHT, bg="black")
+        self.canvas = tk.Canvas(
+            self,
+            width=GAME_WIDTH + 140,
+            height=GAME_HEIGHT,
+            bg="black"
+        )
         self.canvas.pack()
 
-        self.info = tk.Label(self, text="", font=("Helvetica", 12))
+        self.info = tk.Label(self, font=("Helvetica", 12))
         self.info.pack()
 
         self.board = [[0]*BOARD_WIDTH for _ in range(BOARD_HEIGHT)]
@@ -47,6 +58,7 @@ class Tetris(tk.Tk):
         self.next_shape, self.next_color = self.get_new_shape()
         self.current_position = [0, BOARD_WIDTH // 2 - len(self.current_shape[0]) // 2]
 
+        # Controls
         self.bind("<Left>", lambda e: self.move(-1))
         self.bind("<Right>", lambda e: self.move(1))
         self.bind("<Down>", lambda e: self.soft_drop())
@@ -57,6 +69,7 @@ class Tetris(tk.Tk):
         self.update_info()
         self.after(self.speed, self.game_loop)
 
+    # ================== GAME LOGIC ==================
     def get_new_shape(self):
         return random.choice(SHAPES)
 
@@ -65,8 +78,9 @@ class Tetris(tk.Tk):
         self.update_info()
 
     def update_info(self):
+        status = "PAUSED" if self.paused else ""
         self.info.config(
-            text=f"Score: {self.score}   Level: {self.level}   Lines: {self.lines}"
+            text=f"Score: {self.score}   Level: {self.level}   Lines: {self.lines}   {status}"
         )
 
     def valid(self, shape=None, pos=None):
@@ -85,27 +99,31 @@ class Tetris(tk.Tk):
         return True
 
     def move(self, dx):
-        if self.paused: return
+        if self.paused:
+            return
         self.current_position[1] += dx
         if not self.valid():
             self.current_position[1] -= dx
 
     def soft_drop(self):
-        if self.paused: return
+        if self.paused:
+            return
         self.current_position[0] += 1
         if not self.valid():
             self.current_position[0] -= 1
             self.lock()
 
     def hard_drop(self):
-        if self.paused: return
+        if self.paused:
+            return
         while self.valid():
             self.current_position[0] += 1
         self.current_position[0] -= 1
         self.lock()
 
     def rotate(self):
-        if self.paused: return
+        if self.paused:
+            return
         rotated = list(zip(*self.current_shape[::-1]))
         rotated = [list(r) for r in rotated]
         if self.valid(rotated):
@@ -129,9 +147,9 @@ class Tetris(tk.Tk):
         self.current_position = [0, BOARD_WIDTH // 2 - len(self.current_shape[0]) // 2]
 
     def clear_lines(self):
-        cleared = 0
         new_board = []
         new_colors = []
+        cleared = 0
 
         for i in range(BOARD_HEIGHT):
             if all(self.board[i]):
@@ -155,20 +173,36 @@ class Tetris(tk.Tk):
 
         self.update_info()
 
+    # ================== DRAWING ==================
     def draw(self):
         self.canvas.delete("all")
 
-        # board
+        # Board border
+        self.canvas.create_rectangle(
+            0, 0,
+            BOARD_PIXEL_WIDTH, BOARD_PIXEL_HEIGHT,
+            outline="white",
+            width=2
+        )
+
+        # Grid
+        for x in range(0, BOARD_PIXEL_WIDTH, GRID_SIZE):
+            self.canvas.create_line(x, 0, x, BOARD_PIXEL_HEIGHT, fill="#222")
+        for y in range(0, BOARD_PIXEL_HEIGHT, GRID_SIZE):
+            self.canvas.create_line(0, y, BOARD_PIXEL_WIDTH, y, fill="#222")
+
+        # Locked blocks
         for i in range(BOARD_HEIGHT):
             for j in range(BOARD_WIDTH):
                 if self.board[i][j]:
                     x, y = j * GRID_SIZE, i * GRID_SIZE
                     self.canvas.create_rectangle(
                         x, y, x+GRID_SIZE, y+GRID_SIZE,
-                        fill=self.colors[i][j], outline="gray"
+                        fill=self.colors[i][j],
+                        outline="black"
                     )
 
-        # ghost
+        # Ghost piece
         ghost_pos = self.current_position[:]
         while self.valid(pos=ghost_pos):
             ghost_pos[0] += 1
@@ -181,10 +215,11 @@ class Tetris(tk.Tk):
                     y = (ghost_pos[0]+i) * GRID_SIZE
                     self.canvas.create_rectangle(
                         x, y, x+GRID_SIZE, y+GRID_SIZE,
-                        outline="white", dash=(2,2)
+                        outline="white",
+                        dash=(2, 2)
                     )
 
-        # current
+        # Current piece
         for i, row in enumerate(self.current_shape):
             for j, val in enumerate(row):
                 if val:
@@ -192,22 +227,38 @@ class Tetris(tk.Tk):
                     y = (self.current_position[0]+i) * GRID_SIZE
                     self.canvas.create_rectangle(
                         x, y, x+GRID_SIZE, y+GRID_SIZE,
-                        fill=self.current_color, outline="black"
+                        fill=self.current_color,
+                        outline="black"
                     )
 
-        # next piece
-        ox = GAME_WIDTH + 20
-        oy = 40
-        self.canvas.create_text(ox, 20, text="NEXT", fill="white")
+        # Divider
+        self.canvas.create_line(
+            BOARD_PIXEL_WIDTH + 10, 0,
+            BOARD_PIXEL_WIDTH + 10, GAME_HEIGHT,
+            fill="white"
+        )
+
+        # Next piece panel
+        ox = BOARD_PIXEL_WIDTH + 40
+        oy = 60
+        self.canvas.create_text(
+            ox, 30,
+            text="NEXT",
+            fill="white",
+            font=("Helvetica", 12, "bold")
+        )
+
         for i, row in enumerate(self.next_shape):
             for j, val in enumerate(row):
                 if val:
                     self.canvas.create_rectangle(
                         ox + j*20, oy + i*20,
                         ox + j*20 + 20, oy + i*20 + 20,
-                        fill=self.next_color
+                        fill=self.next_color,
+                        outline="black"
                     )
 
+    # ================== LOOP ==================
     def game_loop(self):
         if not self.paused:
             self.soft_drop()
@@ -218,5 +269,7 @@ class Tetris(tk.Tk):
         messagebox.showinfo("Game Over", f"Score: {self.score}")
         self.destroy()
 
+
+# ================== RUN ==================
 if __name__ == "__main__":
     Tetris().mainloop()
