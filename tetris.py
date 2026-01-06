@@ -45,6 +45,7 @@ class Tetris(tk.Tk):
         self.info = tk.Label(self, font=("Helvetica", 12))
         self.info.pack()
 
+        # Game state
         self.board = [[0]*BOARD_WIDTH for _ in range(BOARD_HEIGHT)]
         self.colors = [[None]*BOARD_WIDTH for _ in range(BOARD_HEIGHT)]
 
@@ -69,7 +70,7 @@ class Tetris(tk.Tk):
         self.update_info()
         self.after(self.speed, self.game_loop)
 
-    # ================== GAME LOGIC ==================
+    # ================== CORE LOGIC ==================
     def get_new_shape(self):
         return random.choice(SHAPES)
 
@@ -92,8 +93,10 @@ class Tetris(tk.Tk):
                 if val:
                     x = pos[1] + j
                     y = pos[0] + i
+
                     if x < 0 or x >= BOARD_WIDTH or y >= BOARD_HEIGHT:
                         return False
+
                     if y >= 0 and self.board[y][x]:
                         return False
         return True
@@ -129,22 +132,31 @@ class Tetris(tk.Tk):
         if self.valid(rotated):
             self.current_shape = rotated
 
+    # ================== LOCK & GAME OVER ==================
     def lock(self):
         for i, row in enumerate(self.current_shape):
             for j, val in enumerate(row):
                 if val:
                     y = self.current_position[0] + i
                     x = self.current_position[1] + j
+
                     if y < 0:
                         self.game_over()
                         return
+
                     self.board[y][x] = 1
                     self.colors[y][x] = self.current_color
 
         self.clear_lines()
+
+        # Spawn new piece
         self.current_shape, self.current_color = self.next_shape, self.next_color
         self.next_shape, self.next_color = self.get_new_shape()
         self.current_position = [0, BOARD_WIDTH // 2 - len(self.current_shape[0]) // 2]
+
+        # 🔴 CRITICAL GAME OVER CHECK
+        if not self.valid():
+            self.game_over()
 
     def clear_lines(self):
         new_board = []
@@ -173,7 +185,7 @@ class Tetris(tk.Tk):
 
         self.update_info()
 
-    # ================== DRAWING ==================
+    # ================== DRAW ==================
     def draw(self):
         self.canvas.delete("all")
 
@@ -181,8 +193,7 @@ class Tetris(tk.Tk):
         self.canvas.create_rectangle(
             0, 0,
             BOARD_PIXEL_WIDTH, BOARD_PIXEL_HEIGHT,
-            outline="white",
-            width=2
+            outline="white", width=2
         )
 
         # Grid
@@ -198,8 +209,7 @@ class Tetris(tk.Tk):
                     x, y = j * GRID_SIZE, i * GRID_SIZE
                     self.canvas.create_rectangle(
                         x, y, x+GRID_SIZE, y+GRID_SIZE,
-                        fill=self.colors[i][j],
-                        outline="black"
+                        fill=self.colors[i][j], outline="black"
                     )
 
         # Ghost piece
@@ -227,8 +237,7 @@ class Tetris(tk.Tk):
                     y = (self.current_position[0]+i) * GRID_SIZE
                     self.canvas.create_rectangle(
                         x, y, x+GRID_SIZE, y+GRID_SIZE,
-                        fill=self.current_color,
-                        outline="black"
+                        fill=self.current_color, outline="black"
                     )
 
         # Divider
@@ -238,15 +247,10 @@ class Tetris(tk.Tk):
             fill="white"
         )
 
-        # Next piece panel
+        # Next piece
         ox = BOARD_PIXEL_WIDTH + 40
         oy = 60
-        self.canvas.create_text(
-            ox, 30,
-            text="NEXT",
-            fill="white",
-            font=("Helvetica", 12, "bold")
-        )
+        self.canvas.create_text(ox, 30, text="NEXT", fill="white")
 
         for i, row in enumerate(self.next_shape):
             for j, val in enumerate(row):
@@ -254,8 +258,7 @@ class Tetris(tk.Tk):
                     self.canvas.create_rectangle(
                         ox + j*20, oy + i*20,
                         ox + j*20 + 20, oy + i*20 + 20,
-                        fill=self.next_color,
-                        outline="black"
+                        fill=self.next_color, outline="black"
                     )
 
     # ================== LOOP ==================
@@ -266,9 +269,8 @@ class Tetris(tk.Tk):
         self.after(self.speed, self.game_loop)
 
     def game_over(self):
-        messagebox.showinfo("Game Over", f"Score: {self.score}")
+        messagebox.showinfo("Game Over", f"Final Score: {self.score}")
         self.destroy()
-
 
 # ================== RUN ==================
 if __name__ == "__main__":
