@@ -25,7 +25,7 @@ class Tetris(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        self.title("Enhanced Tetris")
+        self.title("Tetris")
         self.resizable(False, False)
 
         self.canvas = tk.Canvas(self, width=GAME_WIDTH + 120, height=GAME_HEIGHT, bg="black")
